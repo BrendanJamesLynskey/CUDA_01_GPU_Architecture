@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Architecture &amp; the CUDA Execution Model</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-card: #0d1117;
+            --bg-code: #161b22;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #76B900;
+            --accent-dim: #76B90044;
+            --accent-glow: #76B90033;
+            --border: #21262d;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --font-body: 'Inter', sans-serif;
+            --max-width: 900px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 17px;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .hero > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .series-label {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 .accent {
+            color: var(--accent);
+        }
+
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+
+        /* ── Tag Pills ── */
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+            white-space: nowrap;
+        }
+
+        /* ── Pipeline Flow Bar ── */
+        .pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            max-width: var(--max-width);
+        }
+
+        .pipeline-step {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .pipeline-arrow {
+            color: var(--accent);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        /* ── Slides ── */
+        .slide {
+            min-height: 100vh;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .slide-number {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-weight: 700;
+            color: var(--accent-dim);
+            position: absolute;
+            top: 2rem;
+            right: 1.5rem;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .slide h2 {
+            font-family: var(--font-display);
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            line-height: 1.25;
+        }
+
+        .slide h3 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .slide p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .slide p strong {
+            color: var(--text-primary);
+        }
+
+        .slide ul, .slide ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .slide li {
+            margin-bottom: 0.4rem;
+        }
+
+        .slide li strong {
+            color: var(--text-primary);
+        }
+
+        /* ── Code Blocks ── */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 1.25rem 0;
+            overflow: hidden;
+        }
+
+        .code-header {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+            padding: 0.4rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .code-block pre {
+            margin: 0;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #c9d1d9;
+        }
+
+        /* Syntax highlighting (manual) */
+        .kw { color: #ff7b72; }
+        .fn { color: #d2a8ff; }
+        .str { color: #a5d6ff; }
+        .cm { color: #8b949e; font-style: italic; }
+        .num { color: #79c0ff; }
+        .type { color: #ffa657; }
+        .dir { color: #ff7b72; }
+        .mac { color: #ffa657; }
+
+        /* ── Tables ── */
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.25rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: var(--bg-code);
+            color: var(--accent);
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-display);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:nth-child(even) td {
+            background: rgba(13, 17, 23, 0.5);
+        }
+
+        /* ── Diagrams ── */
+        .diagram-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-box {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .diagram-box.accent {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+        }
+
+        .diagram-box.dim {
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+
+        .diagram-arrow {
+            color: var(--accent);
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        /* Vertical flow diagrams */
+        .diagram-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-vertical .diagram-arrow {
+            font-size: 1.1rem;
+        }
+
+        /* Nested hierarchy diagram */
+        .hierarchy {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .hierarchy-level {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .hierarchy-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .hierarchy-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+
+        .hierarchy-item {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .hierarchy-item.accent {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+        }
+
+        /* Grid diagram */
+        .diagram-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-grid.cols-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .diagram-grid.cols-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .diagram-panel {
+            padding: 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .diagram-panel.accent-border {
+            border-left: 3px solid var(--accent);
+        }
+
+        .diagram-panel h4 {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .diagram-panel p, .diagram-panel ul {
+            font-size: 0.85rem;
+        }
+
+        /* ── Callout Boxes ── */
+        .callout {
+            background: var(--bg-card);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+
+        .callout p {
+            margin-bottom: 0;
+        }
+
+        .callout .callout-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.3rem;
+        }
+
+        /* ── Warp Diagram ── */
+        .warp-grid {
+            display: grid;
+            grid-template-columns: repeat(16, 1fr);
+            gap: 3px;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .warp-thread {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 0.55rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            color: var(--text-secondary);
+        }
+
+        .warp-thread.active {
+            background: rgba(118, 185, 0, 0.15);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .warp-thread.diverged {
+            background: rgba(255, 123, 114, 0.12);
+            border-color: #ff7b72;
+            color: #ff7b72;
+        }
+
+        /* ── Contents list ── */
+        .contents-list {
+            list-style: none;
+            padding-left: 0;
+            counter-reset: contents;
+        }
+
+        .contents-list li {
+            counter-increment: contents;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .contents-list li:last-child {
+            border-bottom: none;
+        }
+
+        .contents-list li::before {
+            content: counter(contents, decimal-leading-zero);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            min-width: 2rem;
+        }
+
+        .contents-list a {
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .contents-list a:hover {
+            color: var(--accent);
+        }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            max-width: var(--max-width);
+            margin: 0 auto;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .slide {
+                padding: 3rem 1rem;
+                min-height: auto;
+            }
+
+            .slide-number {
+                font-size: 3rem;
+                top: 1.5rem;
+                right: 1rem;
+            }
+
+            .slide h2 {
+                font-size: 1.5rem;
+            }
+
+            .diagram-grid.cols-2,
+            .diagram-grid.cols-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .warp-grid {
+                grid-template-columns: repeat(8, 1fr);
+            }
+
+            .pipeline {
+                gap: 0.15rem;
+            }
+
+            .pipeline-step {
+                font-size: 0.6rem;
+                padding: 0.2rem 0.4rem;
+            }
+
+            .hero h1 {
+                font-size: 1.8rem;
+            }
+
+            table {
+                font-size: 0.78rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════ HERO ════════════════════════════════════════════ -->
+<header class="hero">
+    <div class="series-label">CUDA Programming Series — Tutorial 01</div>
+    <h1>GPU Architecture &amp; the <span class="accent">CUDA Execution Model</span></h1>
+    <p class="subtitle">A visual deep dive into streaming multiprocessors, warps, SIMT execution, the thread hierarchy, and how GPU hardware maps to CUDA's programming model.</p>
+
+    <div class="tags">
+        <span class="tag">CUDA</span>
+        <span class="tag">GPU Architecture</span>
+        <span class="tag">SIMT</span>
+        <span class="tag">Warps</span>
+        <span class="tag">Streaming Multiprocessors</span>
+        <span class="tag">Thread Hierarchy</span>
+    </div>
+
+    <div class="pipeline">
+        <span class="pipeline-step">CPU vs GPU</span>
+        <span class="pipeline-arrow">→</span>
+        <span class="pipeline-step">Inside the GPU</span>
+        <span class="pipeline-arrow">→</span>
+        <span class="pipeline-step">SIMT Model</span>
+        <span class="pipeline-arrow">→</span>
+        <span class="pipeline-step">Thread Hierarchy</span>
+        <span class="pipeline-arrow">→</span>
+        <span class="pipeline-step">HW ↔ SW Mapping</span>
+        <span class="pipeline-arrow">→</span>
+        <span class="pipeline-step">GPU Generations</span>
+        <span class="pipeline-arrow">→</span>
+        <span class="pipeline-step">Terminology</span>
+    </div>
+</header>
+
+<!-- ═══════════════════════════════ SLIDE 00 — Contents ═══════════════════════════════ -->
+<section class="slide" id="slide-00">
+    <div class="slide-number">00</div>
+    <h2>Topics We'll Cover</h2>
+    <p>This tutorial introduces the hardware architecture that makes CUDA programming possible. No prior GPU knowledge required — we build from first principles.</p>
+    <ul class="contents-list">
+        <li><a href="#slide-01">CPU vs GPU — Design Philosophy</a></li>
+        <li><a href="#slide-02">Inside an NVIDIA GPU</a></li>
+        <li><a href="#slide-03">The SIMT Execution Model</a></li>
+        <li><a href="#slide-04">Thread Hierarchy Overview</a></li>
+        <li><a href="#slide-05">How Hardware Maps to Software</a></li>
+        <li><a href="#slide-06">Compute Capability &amp; GPU Generations</a></li>
+        <li><a href="#slide-07">Key Terminology Reference</a></li>
+        <li><a href="#slide-08">Summary &amp; Next Steps</a></li>
+    </ul>
+    <div class="callout">
+        <div class="callout-label">Prerequisites</div>
+        <p>None — this is the first tutorial in the series. Basic programming knowledge is helpful but not required.</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 01 — CPU vs GPU ═══════════════════════════════ -->
+<section class="slide" id="slide-01">
+    <div class="slide-number">01</div>
+    <h2>CPU vs GPU — Design Philosophy</h2>
+
+    <p>CPUs and GPUs solve fundamentally different problems. Understanding <strong>why</strong> they're designed differently is the key to understanding when and how to use CUDA.</p>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>CPU — Latency Optimised</h4>
+            <ul>
+                <li>Few powerful cores (4–64 typical)</li>
+                <li>Large caches (L1/L2/L3)</li>
+                <li>Complex control logic &amp; branch prediction</li>
+                <li>Optimised for <strong>serial tasks</strong></li>
+                <li>Low latency per operation</li>
+            </ul>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>GPU — Throughput Optimised</h4>
+            <ul>
+                <li>Thousands of simple cores (128–16,384)</li>
+                <li>Small caches per core</li>
+                <li>Minimal control logic</li>
+                <li>Optimised for <strong>parallel tasks</strong></li>
+                <li>High throughput across all cores</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>Die Layout Comparison</h3>
+    <p>Most of a CPU die is dedicated to control logic and cache. Most of a GPU die is dedicated to arithmetic units.</p>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel" style="text-align: center;">
+            <h4 style="color: var(--text-secondary);">CPU Die</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 0.5rem;">
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 4px; padding: 1.2rem 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent);">Core 0</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 4px; padding: 1.2rem 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent);">Core 1</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 4px; padding: 1.2rem 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent);">Core 2</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 4px; padding: 1.2rem 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent);">Core 3</div>
+                <div style="background: #21262d; border: 1px solid var(--border); border-radius: 4px; padding: 0.6rem 0.5rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-secondary); grid-column: 1 / -1;">L3 Cache</div>
+                <div style="background: #161b22; border: 1px solid var(--border); border-radius: 4px; padding: 0.6rem 0.5rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-secondary); grid-column: 1 / -1;">Control Logic &amp; Branch Prediction</div>
+                <div style="background: #161b22; border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.5rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-secondary); grid-column: 1 / -1;">Memory Controller</div>
+            </div>
+        </div>
+        <div class="diagram-panel" style="text-align: center;">
+            <h4 style="color: var(--text-secondary);">GPU Die</h4>
+            <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-top: 0.5rem;">
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
+                <div style="background: #21262d; border: 1px solid var(--border); border-radius: 2px; padding: 0.35rem 0; font-family: var(--font-mono); font-size: 0.5rem; color: var(--text-secondary); grid-column: 1 / -1;">L2 Cache</div>
+                <div style="background: #161b22; border: 1px solid var(--border); border-radius: 2px; padding: 0.3rem 0; font-family: var(--font-mono); font-size: 0.5rem; color: var(--text-secondary); grid-column: 1 / -1;">Memory Controllers</div>
+            </div>
+        </div>
+    </div>
+
+    <h3>The Analogy</h3>
+    <p>Think of a CPU as a <strong>sports car</strong> — incredibly fast at getting one thing from A to B. A GPU is a <strong>bus fleet</strong> — slower per vehicle, but moves thousands of passengers simultaneously. When your problem involves moving thousands of passengers (pixels, matrix elements, neurons), the bus fleet wins.</p>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 02 — Inside an NVIDIA GPU ═══════════════════════════════ -->
+<section class="slide" id="slide-02">
+    <div class="slide-number">02</div>
+    <h2>Inside an NVIDIA GPU</h2>
+
+    <p>An NVIDIA GPU is organised in a hierarchy: the full chip contains <strong>Graphics Processing Clusters (GPCs)</strong>, each containing multiple <strong>Streaming Multiprocessors (SMs)</strong>, each containing many <strong>CUDA cores</strong>.</p>
+
+    <h3>GPU → GPC → SM → CUDA Cores</h3>
+    <div class="diagram-flow">
+        <div class="diagram-box">GPU Chip</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box">GPC × 4–8</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box accent">SM × 16–128</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box">CUDA Cores × 64–128 per SM</div>
+    </div>
+
+    <h3>Streaming Multiprocessor (SM) — The Building Block</h3>
+    <p>The SM is the fundamental compute unit. Each SM contains:</p>
+
+    <div class="diagram-grid cols-3">
+        <div class="diagram-panel accent-border">
+            <h4>CUDA Cores</h4>
+            <p>General-purpose arithmetic units for integer and floating-point operations. 64–128 per SM in modern GPUs.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Tensor Cores</h4>
+            <p>Specialised matrix multiply-accumulate units. Accelerate deep learning (FP16, BF16, INT8, FP4). Introduced in Volta.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>RT Cores</h4>
+            <p>Ray tracing acceleration units. Handle BVH traversal and ray-triangle intersection. Introduced in Turing.</p>
+        </div>
+    </div>
+
+    <h3>Inside a Single SM</h3>
+    <div style="padding: 1.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin: 1rem 0;">
+        <div style="text-align: center; font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);">Streaming Multiprocessor (SM)</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 0.75rem;">
+            <div style="background: rgba(118,185,0,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 0</div>
+            <div style="background: rgba(118,185,0,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 1</div>
+            <div style="background: rgba(118,185,0,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 2</div>
+            <div style="background: rgba(118,185,0,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 3</div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; margin-bottom: 0.5rem;">
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; margin-bottom: 0.5rem;">
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 0.5rem;">
+            <div style="background: rgba(162,136,255,0.1); border: 1px solid #a78bfa; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #a78bfa;">Tensor Core</div>
+            <div style="background: rgba(162,136,255,0.1); border: 1px solid #a78bfa; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #a78bfa;">Tensor Core</div>
+            <div style="background: rgba(162,136,255,0.1); border: 1px solid #a78bfa; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #a78bfa;">Tensor Core</div>
+            <div style="background: rgba(162,136,255,0.1); border: 1px solid #a78bfa; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #a78bfa;">Tensor Core</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 4px; padding: 0.35rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-secondary);">Register File (64K × 32-bit)</div>
+            <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 4px; padding: 0.35rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-secondary);">Shared Memory / L1 (128 KB)</div>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Key Insight</div>
+        <p>The SM is the unit of <strong>independent execution</strong>. When you write a CUDA kernel, you're writing code that runs on SMs. Understanding the SM is the foundation of writing efficient CUDA programs.</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 03 — SIMT ═══════════════════════════════ -->
+<section class="slide" id="slide-03">
+    <div class="slide-number">03</div>
+    <h2>The SIMT Execution Model</h2>
+
+    <p><strong>SIMT</strong> stands for <strong>Single Instruction, Multiple Threads</strong>. It's NVIDIA's execution model, closely related to SIMD (Single Instruction, Multiple Data) but with a crucial difference: each thread has its own program counter and register state.</p>
+
+    <h3>Warps — The Fundamental Execution Unit</h3>
+    <p>The GPU doesn't execute threads individually. Instead, it groups <strong>32 consecutive threads</strong> into a <strong>warp</strong>. All 32 threads in a warp execute the <strong>same instruction at the same time</strong>.</p>
+
+    <div style="padding: 1.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin: 1.25rem 0; text-align: center;">
+        <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); margin-bottom: 0.75rem;">One Warp = 32 Threads</div>
+        <div class="warp-grid" style="max-width: 500px; margin: 0 auto; grid-template-columns: repeat(8, 1fr);">
+            <div class="warp-thread active">T0</div>
+            <div class="warp-thread active">T1</div>
+            <div class="warp-thread active">T2</div>
+            <div class="warp-thread active">T3</div>
+            <div class="warp-thread active">T4</div>
+            <div class="warp-thread active">T5</div>
+            <div class="warp-thread active">T6</div>
+            <div class="warp-thread active">T7</div>
+            <div class="warp-thread active">T8</div>
+            <div class="warp-thread active">T9</div>
+            <div class="warp-thread active">T10</div>
+            <div class="warp-thread active">T11</div>
+            <div class="warp-thread active">T12</div>
+            <div class="warp-thread active">T13</div>
+            <div class="warp-thread active">T14</div>
+            <div class="warp-thread active">T15</div>
+            <div class="warp-thread active">T16</div>
+            <div class="warp-thread active">T17</div>
+            <div class="warp-thread active">T18</div>
+            <div class="warp-thread active">T19</div>
+            <div class="warp-thread active">T20</div>
+            <div class="warp-thread active">T21</div>
+            <div class="warp-thread active">T22</div>
+            <div class="warp-thread active">T23</div>
+            <div class="warp-thread active">T24</div>
+            <div class="warp-thread active">T25</div>
+            <div class="warp-thread active">T26</div>
+            <div class="warp-thread active">T27</div>
+            <div class="warp-thread active">T28</div>
+            <div class="warp-thread active">T29</div>
+            <div class="warp-thread active">T30</div>
+            <div class="warp-thread active">T31</div>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.5rem;">All 32 threads execute the same instruction simultaneously</div>
+    </div>
+
+    <h3>Warp Divergence — The Performance Killer</h3>
+    <p>When threads in a warp hit a conditional branch (like an <code>if/else</code>), some threads take one path and others take the other. The warp must execute <strong>both paths serially</strong>, disabling threads not on the active path. This is called <strong>warp divergence</strong>.</p>
+
+    <div class="code-block">
+        <div class="code-header">divergence_example.cu</div>
+        <pre><code><span class="kw">if</span> (threadIdx.x < <span class="num">16</span>) {
+    <span class="cm">// Path A — threads 0-15 execute, threads 16-31 are IDLE</span>
+    doWorkA();
+} <span class="kw">else</span> {
+    <span class="cm">// Path B — threads 16-31 execute, threads 0-15 are IDLE</span>
+    doWorkB();
+}</code></pre>
+    </div>
+
+    <div style="padding: 1.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin: 1.25rem 0;">
+        <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Phase 1: Executing Path A</div>
+        <div class="warp-grid" style="max-width: 500px; margin: 0 auto 0.75rem; grid-template-columns: repeat(8, 1fr);">
+            <div class="warp-thread active">T0</div>
+            <div class="warp-thread active">T1</div>
+            <div class="warp-thread active">T2</div>
+            <div class="warp-thread active">T3</div>
+            <div class="warp-thread active">T4</div>
+            <div class="warp-thread active">T5</div>
+            <div class="warp-thread active">T6</div>
+            <div class="warp-thread active">T7</div>
+            <div class="warp-thread active">T8</div>
+            <div class="warp-thread active">T9</div>
+            <div class="warp-thread active">T10</div>
+            <div class="warp-thread active">T11</div>
+            <div class="warp-thread active">T12</div>
+            <div class="warp-thread active">T13</div>
+            <div class="warp-thread active">T14</div>
+            <div class="warp-thread active">T15</div>
+            <div class="warp-thread">T16</div>
+            <div class="warp-thread">T17</div>
+            <div class="warp-thread">T18</div>
+            <div class="warp-thread">T19</div>
+            <div class="warp-thread">T20</div>
+            <div class="warp-thread">T21</div>
+            <div class="warp-thread">T22</div>
+            <div class="warp-thread">T23</div>
+            <div class="warp-thread">T24</div>
+            <div class="warp-thread">T25</div>
+            <div class="warp-thread">T26</div>
+            <div class="warp-thread">T27</div>
+            <div class="warp-thread">T28</div>
+            <div class="warp-thread">T29</div>
+            <div class="warp-thread">T30</div>
+            <div class="warp-thread">T31</div>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Phase 2: Executing Path B</div>
+        <div class="warp-grid" style="max-width: 500px; margin: 0 auto; grid-template-columns: repeat(8, 1fr);">
+            <div class="warp-thread">T0</div>
+            <div class="warp-thread">T1</div>
+            <div class="warp-thread">T2</div>
+            <div class="warp-thread">T3</div>
+            <div class="warp-thread">T4</div>
+            <div class="warp-thread">T5</div>
+            <div class="warp-thread">T6</div>
+            <div class="warp-thread">T7</div>
+            <div class="warp-thread">T8</div>
+            <div class="warp-thread">T9</div>
+            <div class="warp-thread">T10</div>
+            <div class="warp-thread">T11</div>
+            <div class="warp-thread">T12</div>
+            <div class="warp-thread">T13</div>
+            <div class="warp-thread">T14</div>
+            <div class="warp-thread">T15</div>
+            <div class="warp-thread diverged">T16</div>
+            <div class="warp-thread diverged">T17</div>
+            <div class="warp-thread diverged">T18</div>
+            <div class="warp-thread diverged">T19</div>
+            <div class="warp-thread diverged">T20</div>
+            <div class="warp-thread diverged">T21</div>
+            <div class="warp-thread diverged">T22</div>
+            <div class="warp-thread diverged">T23</div>
+            <div class="warp-thread diverged">T24</div>
+            <div class="warp-thread diverged">T25</div>
+            <div class="warp-thread diverged">T26</div>
+            <div class="warp-thread diverged">T27</div>
+            <div class="warp-thread diverged">T28</div>
+            <div class="warp-thread diverged">T29</div>
+            <div class="warp-thread diverged">T30</div>
+            <div class="warp-thread diverged">T31</div>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.7rem; color: #ff7b72; margin-top: 0.75rem; text-align: center;">Result: 2× the execution time — only 50% utilisation per phase</div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Rule of Thumb</div>
+        <p>Minimise divergence within a warp. If branching is unavoidable, try to align branch boundaries with warp boundaries (multiples of 32 threads).</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 04 — Thread Hierarchy ═══════════════════════════════ -->
+<section class="slide" id="slide-04">
+    <div class="slide-number">04</div>
+    <h2>Thread Hierarchy Overview</h2>
+
+    <p>CUDA organises parallel work in a hierarchy of <strong>threads</strong>, <strong>warps</strong>, <strong>blocks</strong>, and <strong>grids</strong>. This hierarchy maps directly to the hardware.</p>
+
+    <h3>Thread → Warp → Block → Grid</h3>
+    <div class="hierarchy">
+        <div class="hierarchy-level">
+            <span class="hierarchy-label">Grid</span>
+            <div class="hierarchy-items">
+                <span class="hierarchy-item accent" style="padding: 0.5rem 2rem;">Grid (all blocks for one kernel launch)</span>
+            </div>
+        </div>
+        <div style="text-align: center; color: var(--accent); font-family: var(--font-mono);">↓ contains</div>
+        <div class="hierarchy-level">
+            <span class="hierarchy-label">Blocks</span>
+            <div class="hierarchy-items">
+                <span class="hierarchy-item accent">Block 0</span>
+                <span class="hierarchy-item accent">Block 1</span>
+                <span class="hierarchy-item accent">Block 2</span>
+                <span class="hierarchy-item accent">Block 3</span>
+                <span class="hierarchy-item" style="color: var(--text-secondary);">…</span>
+                <span class="hierarchy-item accent">Block N</span>
+            </div>
+        </div>
+        <div style="text-align: center; color: var(--accent); font-family: var(--font-mono);">↓ contains</div>
+        <div class="hierarchy-level">
+            <span class="hierarchy-label">Warps</span>
+            <div class="hierarchy-items">
+                <span class="hierarchy-item">Warp 0</span>
+                <span class="hierarchy-item">Warp 1</span>
+                <span class="hierarchy-item">Warp 2</span>
+                <span class="hierarchy-item">Warp 3</span>
+                <span class="hierarchy-item" style="color: var(--text-secondary);">…</span>
+            </div>
+        </div>
+        <div style="text-align: center; color: var(--accent); font-family: var(--font-mono);">↓ contains</div>
+        <div class="hierarchy-level">
+            <span class="hierarchy-label">Threads</span>
+            <div class="hierarchy-items">
+                <span class="hierarchy-item">T0</span>
+                <span class="hierarchy-item">T1</span>
+                <span class="hierarchy-item">T2</span>
+                <span class="hierarchy-item">…</span>
+                <span class="hierarchy-item">T31</span>
+            </div>
+        </div>
+    </div>
+
+    <h3>Concrete Example</h3>
+    <p>Suppose you launch a kernel to process 1,000,000 elements with a block size of 256 threads:</p>
+
+    <div class="table-wrap">
+        <table>
+            <tr>
+                <th>Level</th>
+                <th>Count</th>
+                <th>Calculation</th>
+            </tr>
+            <tr>
+                <td><strong>Threads per block</strong></td>
+                <td style="color: var(--accent);">256</td>
+                <td>Chosen by the programmer</td>
+            </tr>
+            <tr>
+                <td><strong>Warps per block</strong></td>
+                <td style="color: var(--accent);">8</td>
+                <td>256 / 32 = 8</td>
+            </tr>
+            <tr>
+                <td><strong>Blocks in grid</strong></td>
+                <td style="color: var(--accent);">3,907</td>
+                <td>ceil(1,000,000 / 256) = 3,907</td>
+            </tr>
+            <tr>
+                <td><strong>Total threads</strong></td>
+                <td style="color: var(--accent);">1,000,192</td>
+                <td>3,907 × 256 (192 threads are "extra")</td>
+            </tr>
+            <tr>
+                <td><strong>Total warps</strong></td>
+                <td style="color: var(--accent);">31,256</td>
+                <td>3,907 × 8</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Why 192 extra threads?</div>
+        <p>1,000,000 is not evenly divisible by 256, so the last block has threads that go past the data boundary. The kernel must include a bounds check: <code style="color: var(--accent);">if (idx &lt; N)</code> to prevent these threads from accessing invalid memory.</p>
+    </div>
+
+    <h3>Dimensionality</h3>
+    <p>Grids and blocks can be <strong>1D, 2D, or 3D</strong>. Use the <code>dim3</code> type in CUDA to specify multi-dimensional configurations — useful for matrices (2D) or volumes (3D).</p>
+
+    <div class="code-block">
+        <div class="code-header">launch_configurations.cu</div>
+        <pre><code><span class="cm">// 1D: processing a flat array</span>
+<span class="type">dim3</span> block(<span class="num">256</span>);
+<span class="type">dim3</span> grid((<span class="num">N</span> + <span class="num">255</span>) / <span class="num">256</span>);
+kernel<<<grid, block>>>(...);
+
+<span class="cm">// 2D: processing a matrix (rows × cols)</span>
+<span class="type">dim3</span> block(<span class="num">16</span>, <span class="num">16</span>);           <span class="cm">// 16×16 = 256 threads per block</span>
+<span class="type">dim3</span> grid((cols+<span class="num">15</span>)/<span class="num">16</span>, (rows+<span class="num">15</span>)/<span class="num">16</span>);
+kernel<<<grid, block>>>(...);
+
+<span class="cm">// 3D: processing a volume</span>
+<span class="type">dim3</span> block(<span class="num">8</span>, <span class="num">8</span>, <span class="num">4</span>);          <span class="cm">// 8×8×4 = 256 threads per block</span>
+<span class="type">dim3</span> grid((X+<span class="num">7</span>)/<span class="num">8</span>, (Y+<span class="num">7</span>)/<span class="num">8</span>, (Z+<span class="num">3</span>)/<span class="num">4</span>);
+kernel<<<grid, block>>>(...);</code></pre>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 05 — HW ↔ SW Mapping ═══════════════════════════════ -->
+<section class="slide" id="slide-05">
+    <div class="slide-number">05</div>
+    <h2>How Hardware Maps to Software</h2>
+
+    <p>The CUDA programming model maps directly to hardware. Understanding this mapping is the key to writing performant code.</p>
+
+    <h3>The Mapping</h3>
+    <div class="table-wrap">
+        <table>
+            <tr>
+                <th>Software (CUDA)</th>
+                <th>Hardware</th>
+                <th>Notes</th>
+            </tr>
+            <tr>
+                <td><strong>Thread</strong></td>
+                <td>CUDA Core (lane)</td>
+                <td>Smallest unit of execution</td>
+            </tr>
+            <tr>
+                <td><strong>Warp</strong> (32 threads)</td>
+                <td>Warp Scheduler unit</td>
+                <td>Executes in lockstep on one SM</td>
+            </tr>
+            <tr>
+                <td><strong>Block</strong></td>
+                <td>Streaming Multiprocessor (SM)</td>
+                <td>All threads in a block run on the same SM</td>
+            </tr>
+            <tr>
+                <td><strong>Grid</strong></td>
+                <td>Entire GPU</td>
+                <td>Blocks distributed across all SMs</td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>Blocks Are Scheduled onto SMs</h3>
+    <div class="diagram-flow">
+        <div class="diagram-box">Block 0</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box accent">SM 0</div>
+        <div style="width: 2rem;"></div>
+        <div class="diagram-box">Block 1</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box accent">SM 1</div>
+        <div style="width: 2rem;"></div>
+        <div class="diagram-box">Block 2</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box accent">SM 0</div>
+    </div>
+    <p style="text-align: center; font-size: 0.85rem; color: var(--text-secondary);">Multiple blocks can be assigned to the same SM (if resources permit)</p>
+
+    <h3>Occupancy</h3>
+    <p><strong>Occupancy</strong> is the ratio of active warps to the maximum number of warps an SM can support. Higher occupancy generally means better latency hiding — when one warp stalls on a memory access, the warp scheduler can switch to another active warp at zero cost.</p>
+
+    <p>What limits occupancy:</p>
+    <ul>
+        <li><strong>Registers per thread</strong> — each SM has a finite register file. More registers per thread → fewer threads (warps) fit.</li>
+        <li><strong>Shared memory per block</strong> — each SM has limited shared memory. Larger shared memory use → fewer blocks fit per SM.</li>
+        <li><strong>Block size</strong> — if your block size doesn't divide evenly into the SM's warp capacity, some capacity is wasted.</li>
+    </ul>
+
+    <h3>Warp Scheduling — Zero-Cost Context Switching</h3>
+    <p>Unlike CPU thread context switches (which are expensive), the GPU keeps the state of <strong>all active warps</strong> in registers simultaneously. When a warp stalls on a memory access, the warp scheduler can <strong>instantly</strong> switch to another ready warp — no save/restore overhead.</p>
+
+    <div class="diagram-vertical">
+        <div class="diagram-box accent" style="width: 80%;">Warp 0: Executing instruction</div>
+        <div class="diagram-arrow">↓ stalls on memory</div>
+        <div class="diagram-box" style="width: 80%;">Warp 1: Immediately starts executing</div>
+        <div class="diagram-arrow">↓ stalls on memory</div>
+        <div class="diagram-box" style="width: 80%;">Warp 2: Immediately starts executing</div>
+        <div class="diagram-arrow">↓ Warp 0's data arrives</div>
+        <div class="diagram-box accent" style="width: 80%;">Warp 0: Resumes execution</div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Key Insight</div>
+        <p>The GPU hides memory latency by <strong>keeping many warps in flight</strong>. This is why occupancy matters and why GPUs need thousands of threads to reach peak performance.</p>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 06 — GPU Generations ═══════════════════════════════ -->
+<section class="slide" id="slide-06">
+    <div class="slide-number">06</div>
+    <h2>Compute Capability &amp; GPU Generations</h2>
+
+    <p>Each NVIDIA GPU has a <strong>compute capability</strong> version (e.g., 8.6) that determines which CUDA features it supports. The major number indicates the architecture generation; the minor number indicates incremental improvements.</p>
+
+    <div class="table-wrap">
+        <table>
+            <tr>
+                <th>Architecture</th>
+                <th>Compute Cap.</th>
+                <th>Year</th>
+                <th>Key Features Introduced</th>
+            </tr>
+            <tr>
+                <td><strong>Tesla</strong></td>
+                <td>1.x</td>
+                <td>2006</td>
+                <td>First CUDA architecture, unified shaders</td>
+            </tr>
+            <tr>
+                <td><strong>Fermi</strong></td>
+                <td>2.x</td>
+                <td>2010</td>
+                <td>L1/L2 caches, ECC memory, 64-bit addressing</td>
+            </tr>
+            <tr>
+                <td><strong>Kepler</strong></td>
+                <td>3.x</td>
+                <td>2012</td>
+                <td>Dynamic parallelism, Hyper-Q, shuffle instructions</td>
+            </tr>
+            <tr>
+                <td><strong>Maxwell</strong></td>
+                <td>5.x</td>
+                <td>2014</td>
+                <td>Improved energy efficiency, shared memory improvements</td>
+            </tr>
+            <tr>
+                <td><strong>Pascal</strong></td>
+                <td>6.x</td>
+                <td>2016</td>
+                <td>Unified memory, NVLink, FP16 support, HBM2</td>
+            </tr>
+            <tr>
+                <td><strong>Volta</strong></td>
+                <td>7.0</td>
+                <td>2017</td>
+                <td>Tensor Cores (1st gen), independent thread scheduling</td>
+            </tr>
+            <tr>
+                <td><strong>Turing</strong></td>
+                <td>7.5</td>
+                <td>2018</td>
+                <td>RT Cores, INT8/INT4 Tensor ops, GDDR6</td>
+            </tr>
+            <tr>
+                <td><strong>Ampere</strong></td>
+                <td>8.x</td>
+                <td>2020</td>
+                <td>3rd-gen Tensor Cores, TF32, sparsity, async copy</td>
+            </tr>
+            <tr>
+                <td><strong>Ada Lovelace</strong></td>
+                <td>8.9</td>
+                <td>2022</td>
+                <td>4th-gen Tensor Cores, FP8, Shader Exec. Reorder</td>
+            </tr>
+            <tr>
+                <td><strong>Hopper</strong></td>
+                <td>9.0</td>
+                <td>2022</td>
+                <td>Transformer Engine, DPX instructions, TMA</td>
+            </tr>
+            <tr>
+                <td><strong>Blackwell</strong></td>
+                <td>10.x</td>
+                <td>2024</td>
+                <td>5th-gen Tensor Cores, FP4, 2nd-gen Transformer Engine</td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>Why Compute Capability Matters</h3>
+    <ul>
+        <li>When compiling with <code>nvcc</code>, you target a specific compute capability with the <code style="color: var(--accent);">-arch=sm_XX</code> flag.</li>
+        <li>Code compiled for a lower compute capability runs on higher GPUs (forward compatible), but not vice versa.</li>
+        <li>Some features (like Tensor Cores or cooperative groups) require minimum compute capabilities.</li>
+    </ul>
+
+    <div class="code-block">
+        <div class="code-header">Compilation examples</div>
+        <pre><code><span class="cm"># Target Volta and newer</span>
+nvcc -arch=sm_70 my_kernel.cu -o my_kernel
+
+<span class="cm"># Target Ampere (RTX 3090)</span>
+nvcc -arch=sm_86 my_kernel.cu -o my_kernel
+
+<span class="cm"># Target Blackwell (RTX 5090, DGX Spark)</span>
+nvcc -arch=sm_100 my_kernel.cu -o my_kernel
+
+<span class="cm"># Generate code for multiple architectures (fat binary)</span>
+nvcc -gencode arch=compute_70,code=sm_70 \
+     -gencode arch=compute_86,code=sm_86 \
+     -gencode arch=compute_100,code=sm_100 \
+     my_kernel.cu -o my_kernel</code></pre>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 07 — Terminology ═══════════════════════════════ -->
+<section class="slide" id="slide-07">
+    <div class="slide-number">07</div>
+    <h2>Key Terminology Reference</h2>
+
+    <p>A quick-reference glossary of the terms introduced in this tutorial.</p>
+
+    <div class="table-wrap">
+        <table>
+            <tr>
+                <th>Term</th>
+                <th>Definition</th>
+            </tr>
+            <tr>
+                <td><strong>SM</strong></td>
+                <td>Streaming Multiprocessor — the fundamental compute building block of an NVIDIA GPU. Contains CUDA cores, warp schedulers, register files, and shared memory.</td>
+            </tr>
+            <tr>
+                <td><strong>CUDA Core</strong></td>
+                <td>A single arithmetic execution unit within an SM. Handles one floating-point or integer operation per clock cycle.</td>
+            </tr>
+            <tr>
+                <td><strong>Warp</strong></td>
+                <td>A group of 32 threads that execute in lockstep under the SIMT model. The smallest unit of scheduling on the GPU.</td>
+            </tr>
+            <tr>
+                <td><strong>Lane</strong></td>
+                <td>A single thread's position within a warp (lane 0 through lane 31).</td>
+            </tr>
+            <tr>
+                <td><strong>Thread Block</strong></td>
+                <td>A programmer-defined group of threads (up to 1,024) that execute on the same SM and can share memory and synchronise.</td>
+            </tr>
+            <tr>
+                <td><strong>Grid</strong></td>
+                <td>The collection of all thread blocks launched by a single kernel invocation.</td>
+            </tr>
+            <tr>
+                <td><strong>Kernel</strong></td>
+                <td>A function written in CUDA C/C++ that executes on the GPU. Declared with the <code>__global__</code> qualifier.</td>
+            </tr>
+            <tr>
+                <td><strong>Occupancy</strong></td>
+                <td>The ratio of active warps on an SM to the maximum supported. Higher occupancy helps hide memory latency.</td>
+            </tr>
+            <tr>
+                <td><strong>Compute Capability</strong></td>
+                <td>A version number (e.g., 8.6) indicating which hardware features and CUDA APIs a GPU supports.</td>
+            </tr>
+            <tr>
+                <td><strong>SIMT</strong></td>
+                <td>Single Instruction, Multiple Threads — NVIDIA's execution model where 32 threads (one warp) execute the same instruction simultaneously.</td>
+            </tr>
+            <tr>
+                <td><strong>Warp Divergence</strong></td>
+                <td>When threads within a warp take different execution paths at a branch, forcing serial execution of both paths.</td>
+            </tr>
+            <tr>
+                <td><strong>GPC</strong></td>
+                <td>Graphics Processing Cluster — a group of SMs within the GPU hierarchy. An organisational unit between the full chip and individual SMs.</td>
+            </tr>
+            <tr>
+                <td><strong>Tensor Core</strong></td>
+                <td>Specialised hardware unit for matrix multiply-accumulate operations. Accelerates deep learning training and inference.</td>
+            </tr>
+        </table>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════ SLIDE 08 — Summary ═══════════════════════════════ -->
+<section class="slide" id="slide-08">
+    <div class="slide-number">08</div>
+    <h2>Summary &amp; Next Steps</h2>
+
+    <h3>What We Covered</h3>
+    <ul>
+        <li><strong>CPUs vs GPUs</strong> — latency-optimised vs throughput-optimised architectures with fundamentally different design philosophies.</li>
+        <li><strong>GPU architecture</strong> — the hierarchy from GPU chip → GPC → SM → CUDA cores, and the role of each component.</li>
+        <li><strong>SIMT execution</strong> — how 32 threads form a warp and execute in lockstep, and why warp divergence hurts performance.</li>
+        <li><strong>Thread hierarchy</strong> — the Thread → Warp → Block → Grid model, with concrete sizing examples.</li>
+        <li><strong>Hardware–software mapping</strong> — blocks run on SMs, the warp scheduler hides latency through zero-cost context switching, and occupancy determines utilisation.</li>
+        <li><strong>GPU generations</strong> — from Tesla to Blackwell, each generation's compute capability and key features.</li>
+    </ul>
+
+    <h3>Key Takeaways</h3>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Think in Warps</h4>
+            <p>The warp (32 threads) is the true unit of execution. Block sizes should be multiples of 32. Minimise warp divergence.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Maximise Occupancy</h4>
+            <p>Keep enough warps active to hide memory latency. Balance register use, shared memory, and block size.</p>
+        </div>
+    </div>
+
+    <h3>Next Tutorial</h3>
+    <div class="callout">
+        <div class="callout-label">Up Next — Tutorial 02</div>
+        <p><strong><a href="https://brendanjameslynskey.github.io/CUDA_02_First_Kernel/" style="color: var(--accent); text-decoration: none;">Your First CUDA Kernel</a></strong> — set up the CUDA toolkit, write your first <code>__global__</code> function, compile it with <code>nvcc</code>, and learn the host ↔ device workflow: allocate → copy → launch → copy → free.</p>
+    </div>
+</section>
+
+<!-- ════════════════════════════════════ Footer ════════════════════════════════════ -->
+<footer class="footer">
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLMs#cuda-programming">CUDA Programming Series</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">GPU Architecture &amp; the CUDA Execution Model — Tutorial 01 of 10</p>
+</footer>
+
+<script>
+    // Smooth scroll for table-of-contents links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+
+    // Subtle fade-in animation for slides on scroll
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.slide').forEach(slide => {
+        slide.style.opacity = '0';
+        slide.style.transform = 'translateY(30px)';
+        slide.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(slide);
+    });
+</script>
+
+</body>
+</html>
