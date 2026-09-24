@@ -9,15 +9,15 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #0a0a0a;
-            --bg-card: #0d1117;
-            --bg-code: #161b22;
-            --text-primary: #e6edf3;
-            --text-secondary: #8b949e;
-            --accent: #76B900;
-            --accent-dim: #76B90044;
-            --accent-glow: #76B90033;
-            --border: #21262d;
+            --bg-primary: #1b1b1a;
+            --bg-card: #212120;
+            --bg-code: #292928;
+            --text-primary: #edede7;
+            --text-secondary: #9b9b95;
+            --accent: #b8b315;
+            --accent-dim: #b8b31544;
+            --accent-glow: #b8b31533;
+            --border: #363633;
             --font-display: 'Space Grotesk', sans-serif;
             --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
             --font-body: 'Inter', sans-serif;
@@ -228,7 +228,7 @@
             font-family: var(--font-mono);
             font-size: 0.75rem;
             color: var(--accent);
-            background: rgba(118, 185, 0, 0.08);
+            background: rgba(184,179,21,0.08);
             padding: 0.4rem 1rem;
             border-bottom: 1px solid var(--border);
         }
@@ -243,18 +243,18 @@
             font-family: var(--font-mono);
             font-size: 0.85rem;
             line-height: 1.6;
-            color: #c9d1d9;
+            color: #d5d5cf;
         }
 
         /* Syntax highlighting (manual) */
-        .kw { color: #ff7b72; }
-        .fn { color: #d2a8ff; }
-        .str { color: #a5d6ff; }
-        .cm { color: #8b949e; font-style: italic; }
-        .num { color: #79c0ff; }
-        .type { color: #ffa657; }
-        .dir { color: #ff7b72; }
-        .mac { color: #ffa657; }
+        .kw { color: #e57d63; }
+        .fn { color: #d1c2e1; }
+        .str { color: #c9dbe2; }
+        .cm { color: #9b9b95; font-style: italic; }
+        .num { color: #afcbd8; }
+        .type { color: #e0b172; }
+        .dir { color: #e57d63; }
+        .mac { color: #e0b172; }
 
         /* ── Tables ── */
         .table-wrap {
@@ -292,7 +292,7 @@
         }
 
         tr:nth-child(even) td {
-            background: rgba(13, 17, 23, 0.5);
+            background: rgba(33,33,32,0.5);
         }
 
         /* ── Diagrams ── */
@@ -324,7 +324,7 @@
         .diagram-box.accent {
             border-color: var(--accent);
             color: var(--accent);
-            background: rgba(118, 185, 0, 0.08);
+            background: rgba(184,179,21,0.08);
         }
 
         .diagram-box.dim {
@@ -400,7 +400,7 @@
         .hierarchy-item.accent {
             border-color: var(--accent);
             color: var(--accent);
-            background: rgba(118, 185, 0, 0.08);
+            background: rgba(184,179,21,0.08);
         }
 
         /* Grid diagram */
@@ -492,15 +492,15 @@
         }
 
         .warp-thread.active {
-            background: rgba(118, 185, 0, 0.15);
+            background: rgba(184,179,21,0.15);
             border-color: var(--accent);
             color: var(--accent);
         }
 
         .warp-thread.diverged {
-            background: rgba(255, 123, 114, 0.12);
-            border-color: #ff7b72;
-            color: #ff7b72;
+            background: rgba(229,125,99,0.12);
+            border-color: #e57d63;
+            color: #e57d63;
         }
 
         /* ── Contents list ── */
@@ -702,9 +702,9 @@
                 <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 4px; padding: 1.2rem 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent);">Core 1</div>
                 <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 4px; padding: 1.2rem 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent);">Core 2</div>
                 <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 4px; padding: 1.2rem 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent);">Core 3</div>
-                <div style="background: #21262d; border: 1px solid var(--border); border-radius: 4px; padding: 0.6rem 0.5rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-secondary); grid-column: 1 / -1;">L3 Cache</div>
-                <div style="background: #161b22; border: 1px solid var(--border); border-radius: 4px; padding: 0.6rem 0.5rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-secondary); grid-column: 1 / -1;">Control Logic &amp; Branch Prediction</div>
-                <div style="background: #161b22; border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.5rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-secondary); grid-column: 1 / -1;">Memory Controller</div>
+                <div style="background: #363633; border: 1px solid var(--border); border-radius: 4px; padding: 0.6rem 0.5rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-secondary); grid-column: 1 / -1;">L3 Cache</div>
+                <div style="background: #292928; border: 1px solid var(--border); border-radius: 4px; padding: 0.6rem 0.5rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-secondary); grid-column: 1 / -1;">Control Logic &amp; Branch Prediction</div>
+                <div style="background: #292928; border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.5rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-secondary); grid-column: 1 / -1;">Memory Controller</div>
             </div>
         </div>
         <div class="diagram-panel" style="text-align: center;">
@@ -742,8 +742,8 @@
                 <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
                 <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
                 <div style="background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 2px; padding: 0.4rem 0; font-family: var(--font-mono); font-size: 0.45rem; color: var(--accent);">SM</div>
-                <div style="background: #21262d; border: 1px solid var(--border); border-radius: 2px; padding: 0.35rem 0; font-family: var(--font-mono); font-size: 0.5rem; color: var(--text-secondary); grid-column: 1 / -1;">L2 Cache</div>
-                <div style="background: #161b22; border: 1px solid var(--border); border-radius: 2px; padding: 0.3rem 0; font-family: var(--font-mono); font-size: 0.5rem; color: var(--text-secondary); grid-column: 1 / -1;">Memory Controllers</div>
+                <div style="background: #363633; border: 1px solid var(--border); border-radius: 2px; padding: 0.35rem 0; font-family: var(--font-mono); font-size: 0.5rem; color: var(--text-secondary); grid-column: 1 / -1;">L2 Cache</div>
+                <div style="background: #292928; border: 1px solid var(--border); border-radius: 2px; padding: 0.3rem 0; font-family: var(--font-mono); font-size: 0.5rem; color: var(--text-secondary); grid-column: 1 / -1;">Memory Controllers</div>
             </div>
         </div>
     </div>
@@ -792,10 +792,10 @@
     <div style="padding: 1.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin: 1rem 0;">
         <div style="text-align: center; font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);">Streaming Multiprocessor (SM)</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 0.75rem;">
-            <div style="background: rgba(118,185,0,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 0</div>
-            <div style="background: rgba(118,185,0,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 1</div>
-            <div style="background: rgba(118,185,0,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 2</div>
-            <div style="background: rgba(118,185,0,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 3</div>
+            <div style="background: rgba(184,179,21,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 0</div>
+            <div style="background: rgba(184,179,21,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 1</div>
+            <div style="background: rgba(184,179,21,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 2</div>
+            <div style="background: rgba(184,179,21,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--accent);">Warp Scheduler 3</div>
         </div>
         <div style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; margin-bottom: 0.5rem;">
             <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">FP</div>
@@ -834,10 +834,10 @@
             <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 2px; padding: 0.2rem 0; text-align: center; font-family: var(--font-mono); font-size: 0.4rem; color: var(--text-secondary);">INT</div>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 0.5rem;">
-            <div style="background: rgba(162,136,255,0.1); border: 1px solid #a78bfa; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #a78bfa;">Tensor Core</div>
-            <div style="background: rgba(162,136,255,0.1); border: 1px solid #a78bfa; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #a78bfa;">Tensor Core</div>
-            <div style="background: rgba(162,136,255,0.1); border: 1px solid #a78bfa; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #a78bfa;">Tensor Core</div>
-            <div style="background: rgba(162,136,255,0.1); border: 1px solid #a78bfa; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #a78bfa;">Tensor Core</div>
+            <div style="background: rgba(178,163,205,0.1); border: 1px solid #b4a6cd; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #b4a6cd;">Tensor Core</div>
+            <div style="background: rgba(178,163,205,0.1); border: 1px solid #b4a6cd; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #b4a6cd;">Tensor Core</div>
+            <div style="background: rgba(178,163,205,0.1); border: 1px solid #b4a6cd; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #b4a6cd;">Tensor Core</div>
+            <div style="background: rgba(178,163,205,0.1); border: 1px solid #b4a6cd; border-radius: 4px; padding: 0.3rem; text-align: center; font-family: var(--font-mono); font-size: 0.55rem; color: #b4a6cd;">Tensor Core</div>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
             <div style="background: var(--bg-code); border: 1px solid var(--border); border-radius: 4px; padding: 0.35rem; text-align: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-secondary);">Register File (64K × 32-bit)</div>
@@ -985,7 +985,7 @@
             <div class="warp-thread diverged">T30</div>
             <div class="warp-thread diverged">T31</div>
         </div>
-        <div style="font-family: var(--font-mono); font-size: 0.7rem; color: #ff7b72; margin-top: 0.75rem; text-align: center;">Result: 2× the execution time — only 50% utilisation per phase</div>
+        <div style="font-family: var(--font-mono); font-size: 0.7rem; color: #e57d63; margin-top: 0.75rem; text-align: center;">Result: 2× the execution time — only 50% utilisation per phase</div>
     </div>
 
     <div class="callout">
