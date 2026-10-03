@@ -1292,7 +1292,7 @@ nvcc -arch=sm_70 my_kernel.cu -o my_kernel
 <span class="cm"># Target Ampere (RTX 3090)</span>
 nvcc -arch=sm_86 my_kernel.cu -o my_kernel
 
-<span class="cm"># Target Blackwell (RTX 5090, DGX Spark)</span>
+<span class="cm"># Target datacenter Blackwell (B200); RTX 5090 is sm_120, DGX Spark sm_121</span>
 nvcc -arch=sm_100 my_kernel.cu -o my_kernel
 
 <span class="cm"># Generate code for multiple architectures (fat binary)</span>
