@@ -1179,17 +1179,17 @@ html[data-concept=datasheet] tr:nth-child(even) td{background:rgba(255,255,255,.
         <pre><code><span class="cm">// 1D: processing a flat array</span>
 <span class="type">dim3</span> block(<span class="num">256</span>);
 <span class="type">dim3</span> grid((<span class="num">N</span> + <span class="num">255</span>) / <span class="num">256</span>);
-kernel<<<grid, block>>>(...);
+kernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(...);
 
 <span class="cm">// 2D: processing a matrix (rows × cols)</span>
 <span class="type">dim3</span> block(<span class="num">16</span>, <span class="num">16</span>);           <span class="cm">// 16×16 = 256 threads per block</span>
 <span class="type">dim3</span> grid((cols+<span class="num">15</span>)/<span class="num">16</span>, (rows+<span class="num">15</span>)/<span class="num">16</span>);
-kernel<<<grid, block>>>(...);
+kernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(...);
 
 <span class="cm">// 3D: processing a volume</span>
 <span class="type">dim3</span> block(<span class="num">8</span>, <span class="num">8</span>, <span class="num">4</span>);          <span class="cm">// 8×8×4 = 256 threads per block</span>
 <span class="type">dim3</span> grid((X+<span class="num">7</span>)/<span class="num">8</span>, (Y+<span class="num">7</span>)/<span class="num">8</span>, (Z+<span class="num">3</span>)/<span class="num">4</span>);
-kernel<<<grid, block>>>(...);</code></pre>
+kernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(...);</code></pre>
     </div>
 </section>
 
